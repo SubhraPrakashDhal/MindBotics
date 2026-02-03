@@ -1,10 +1,13 @@
 {
-    "userdata":[
-        {
-
-        }
-    ],
-    "product_data":[
-        
-    ]
+  "userdata": [
+    {
+      "id": "6b45",
+      "username": "Subhra",
+      "fullname": "Subhra Prakash Dhal",
+      "email": "subhraprakashdhal1@gmail.com",
+      "password": "1234",
+      "role": "employee"
+    }
+  ],
+  "product_data": []
 }

@@ -59,13 +59,11 @@ const Login = () => {
         autoClose: 2000,
       });
 
-      // optional: save logged user
-      localStorage.setItem("loggedUser", JSON.stringify(user));
 
       navigate("/userdashboard");
     } catch (error) {
       console.log(error);
-      toast.error("Server error", {
+      toast.error("Server error", {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
         position: "top-right",
         autoClose: 2000,
       });
