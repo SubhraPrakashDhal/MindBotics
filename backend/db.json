@@ -1,12 +1,40 @@
 {
   "userdata": [
     {
-      "id": "6b45",
+      "id": "95c1",
       "username": "Subhra",
       "fullname": "Subhra Prakash Dhal",
       "email": "subhraprakashdhal1@gmail.com",
       "password": "1234",
+      "mobileno": "9827765986",
       "role": "employee"
+    },
+    {
+      "id": "3629",
+      "username": "kajal",
+      "fullname": "kajal kumari",
+      "email": "kajal@gmail.com",
+      "password": "1234",
+      "mobileno": "123456789",
+      "role": "employee"
+    },
+    {
+      "id": "531a",
+      "username": "manas",
+      "fullname": "manas dash",
+      "email": "manasdash@gmail.com",
+      "password": "123",
+      "mobileno": "123456789",
+      "role": "employee"
+    },
+    {
+      "id": "44e4",
+      "username": "rudra",
+      "fullname": "rudra narayan",
+      "email": "rudra@gmail.com",
+      "password": "123",
+      "mobileno": "12345678",
+      "role": "admin"
     }
   ],
   "product_data": []

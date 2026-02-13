@@ -11,7 +11,7 @@ const Layout = () => {
       <NavbarMain />
 
       {/* Scroll area */}
-      <div className="flex-1 overflow-y-scroll">
+      <div className="flex-1 ">
         <Outlet />
       </div>
       <Footer/>

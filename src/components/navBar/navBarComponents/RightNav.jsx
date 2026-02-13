@@ -18,21 +18,6 @@ const RightNav = () => {
         <FaSun size={16} />
       </button>
 
-      {/* User */}
-      <div className="flex items-center gap-2">
-        <div
-          className="w-9 h-9 rounded-full 
-          bg-[#BDE8F5] text-[#0F2854]
-          flex items-center justify-center"
-        >
-          <FaUserCircle size={20} />
-        </div>
-
-        <span className="text-sm font-medium text-[#BDE8F5]">
-          Subhra
-        </span>
-      </div>
-
       {/* Login CTA */}
       <Link to="/login"
         className="min-w-[140px] h-[46px] px-6
