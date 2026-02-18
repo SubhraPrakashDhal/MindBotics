@@ -1,10 +1,36 @@
-  import React from "react";
+  import React, { useEffect } from "react";
   import { NavLink, Outlet } from "react-router-dom";
   import { FaUser, FaCog, FaPlus } from "react-icons/fa";
   import { IoImagesOutline } from "react-icons/io5";
   import { BsCollectionPlay } from "react-icons/bs";
+  import axios from "axios";
+  import { useAuth } from "../../../customHooks/useAuth";
 
-  const UserDashboardMain = () => {
+const UserDashboardMain = () => {
+
+      const {currentUser,setCurrentUser} = useAuth()
+      
+      const token = JSON.parse(localStorage.getItem("mindbrain_token"))
+      let id = token.split(".")[2]
+
+
+    const fetchUser = async () => {
+    try {
+      const { data } = await axios.get(`http://localhost:3000/userdata/${id}`)
+      setCurrentUser(data)
+    } catch (error) {
+      console.log(error.message)
+    }
+  }
+  
+  useEffect(() => {
+    if (!token) {
+      navigate("/login")
+    } else {
+      fetchUser()
+    }
+  }, [])
+
     return (
       <div className="w-full h-screen flex bg-gradient-to-br from-[#0B1220] via-[#0F172A] to-[#020617]">
 
@@ -22,8 +48,8 @@
                   alt="profile"
                 />
               </div>
-              <h3 className="mt-3 font-semibold text-lg">User Name</h3>
-              <p className="text-sm text-gray-400">user@email.com</p>
+              <h3 className="mt-3 font-semibold text-lg">{currentUser.username}</h3>
+              <p className="text-sm text-gray-400">{currentUser.email} </p>
             </div>
 
             {/* MENU */}
@@ -31,7 +57,7 @@
               <ul className="flex flex-col gap-3">
                 <li>
                   <NavLink
-                    to="/userdashboard/welcome/1"
+                    to= "/userdashboard"
                     className="flex items-center gap-3 px-4 py-3 rounded-xl
                     bg-white/5 hover:bg-gradient-to-r hover:from-cyan-400 hover:to-blue-500 hover:text-black
                     transition-all duration-300"
@@ -39,18 +65,6 @@
                     <BsCollectionPlay /> Dashboard
                   </NavLink>
                 </li>
-
-                <li>
-                  <NavLink
-                    to="/userdashboard/profile/1"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl
-                    bg-white/5 hover:bg-gradient-to-r hover:from-cyan-400 hover:to-blue-500 hover:text-black
-                    transition-all duration-300"
-                  >
-                    <FaUser /> My Profile
-                  </NavLink>
-                </li>
-
                 <li>
                   <NavLink
                     to="/userdashboard/createpost/1"
@@ -94,7 +108,7 @@
 
         {/* CONTENT */}
         <div className="w-[78%] h-full p-5 overflow-y-auto">
-          <div className="w-full h-full rounded-2xl shadow-2xl border border-white/10 bg-white/5 backdrop-blur-xl">
+          <div className="w-full h-full rounded-2xl shadow-2xl border overflow-hidden border-white/10 bg-white/5 backdrop-blur-xl">
             <Outlet />
           </div>
         </div>
