@@ -5,6 +5,7 @@ import Homepage from "../pages/homepage/Homepage";
 import Register from "../pages/registerPage/Register";
 import UserDashboardMain from "../components/dashbooard/userdashboard/UserDashboardMain";
 import PrivateRouting from "../privaterouting/Privaterouting";
+import DashboardHome from "../components/dashbooard/userdashboard/userDashboardcomponent/DashboardHome";
 
 export const routes = createBrowserRouter([
     {
@@ -19,7 +20,13 @@ export const routes = createBrowserRouter([
                 path:"/userdashboard",
                 element:<PrivateRouting>
                     <UserDashboardMain/>
-                </PrivateRouting>
+                    </PrivateRouting>,
+                children:[
+                    {
+                        path:"/userdashboard",
+                        element:<DashboardHome/>
+                    }
+                ]
                 
             }
         ]

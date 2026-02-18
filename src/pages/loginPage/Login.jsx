@@ -72,7 +72,7 @@ const Login = () => {
 
       // ✅ store user + token
       localStorage.setItem("mindbrain_user", JSON.stringify(user));
-      localStorage.setItem("mindbrain_token", token);
+      localStorage.setItem("mindbrain_token", JSON.stringify(token));
 
       toast.success("Login successful", {
         position: "top-right",
