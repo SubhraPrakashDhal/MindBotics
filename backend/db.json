@@ -35,7 +35,51 @@
       "password": "123",
       "mobileno": "12345678",
       "role": "admin"
+    },
+    {
+      "id": "3cf7",
+      "username": "kajal",
+      "fullname": "kajal kumari",
+      "email": "kaj@gmail.com",
+      "password": "123",
+      "mobileno": "8638516666",
+      "role": "employee"
     }
   ],
-  "product_data": []
+  "product_data": [],
+  "categories": [
+    {
+      "id": "8368",
+      "name": "Microcontroller",
+      "userId": "3cf7",
+      "components": [
+        {
+          "id": "1",
+          "name": "Arduino Uno",
+          "price": 359,
+          "total": 9,
+          "inUse": 1,
+          "logs": [
+            {
+              "person": "manas",
+              "quantity": 1,
+              "date": "2026-02-18"
+            }
+          ]
+        }
+      ],
+      "description": "brain of project",
+      "type": "Controller",
+      "notes": "Brain of projects",
+      "color": "#3aebf8"
+    },
+    {
+      "id": "cde6",
+      "name": "servo motor",
+      "notes": "motor",
+      "color": "#ac3af8",
+      "userId": "3cf7",
+      "components": []
+    }
+  ]
 }

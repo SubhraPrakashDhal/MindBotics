@@ -58,7 +58,7 @@
                     bg-white/5 hover:bg-gradient-to-r hover:from-cyan-400 hover:to-blue-500 hover:text-black
                     transition-all duration-300"
                   >
-                    <FaPlus /> microcontoller
+                    <FaPlus /> Devices
                   </NavLink>
                 </li>
 
