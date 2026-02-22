@@ -1,11 +1,11 @@
-import { createContext, useState } from "react";
-
+import { createContext, useEffect, useState } from "react";
 
 export const Authcontext = createContext()
 export const AuthProvider =({children})=> {
 
     const [currentUser, setCurrentUser] = useState("")
-    const [loggedin,setloggedin] = useState(JSON.parse(localStorage.getItem("mindbrain_token"))? true :false)
+    // ❌ JSON.parse hata diya
+    const [loggedin,setloggedin] = useState(!!localStorage.getItem("mindbrain_token"))
     
      const login = ()=>{
             setloggedin(true)
@@ -15,6 +15,10 @@ export const AuthProvider =({children})=> {
             setloggedin(false)
         }
 
+    // ✅ refresh pe token ke saath sync rahe
+    useEffect(() => {
+      setloggedin(!!localStorage.getItem("mindbrain_token"))
+    }, [])
 
     return(
         <Authcontext.Provider value={{loggedin,login,logout,currentUser, setCurrentUser}}>

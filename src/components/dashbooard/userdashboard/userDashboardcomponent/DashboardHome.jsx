@@ -15,7 +15,6 @@ const DashboardHome = () => {
             <h1 className='text-[35px] font-semibold '>welcome to mindbotics {currentUser.username} </h1>
             <p>Powering the Next Generation of Robotics Innovators.</p>
         </div>
-
     </div>
   )
 }

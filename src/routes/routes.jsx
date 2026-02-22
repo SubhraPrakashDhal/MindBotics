@@ -6,6 +6,8 @@ import Register from "../pages/registerPage/Register";
 import UserDashboardMain from "../components/dashbooard/userdashboard/UserDashboardMain";
 import PrivateRouting from "../privaterouting/Privaterouting";
 import DashboardHome from "../components/dashbooard/userdashboard/userDashboardcomponent/DashboardHome";
+import CategoryComponentsPage from "../components/dashbooard/userdashboard/userDashboardcomponent/CategoryComponentsPage";
+import DevicesPage from "../components/dashbooard/userdashboard/userDashboardcomponent/DevicesPage";
 
 export const routes = createBrowserRouter([
     {
@@ -23,11 +25,18 @@ export const routes = createBrowserRouter([
                     </PrivateRouting>,
                 children:[
                     {
-                        path:"/userdashboard",
+                        index:true,
                         element:<DashboardHome/>
+                    },
+                    {
+                        path: "createpost/:id",
+                        element: <DevicesPage />,
+                    },
+                    {
+                        path: "category/:categoryId",
+                        element: <CategoryComponentsPage/>,
                     }
-                ]
-                
+                ]  
             }
         ]
     },

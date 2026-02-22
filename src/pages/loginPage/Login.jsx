@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { ImSpinner2 } from "react-icons/im";
+import { useAuth } from "../../customHooks/useAuth"; 
 
 // 🔐 custom token generator
 const generateToken = (user) => {
@@ -12,6 +13,7 @@ const generateToken = (user) => {
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth(); // ✅ ADD
 
   const [formdata, setformdata] = useState({
     email: "",
@@ -67,19 +69,18 @@ const Login = () => {
         return;
       }
 
-      // ✅ generate token
-      const token = generateToken(user);
-
-      // ✅ store user + token
-      localStorage.setItem("mindbrain_user", JSON.stringify(user));
-      localStorage.setItem("mindbrain_token", JSON.stringify(token));
+// success ke baad
 
       toast.success("Login successful", {
         position: "top-right",
         autoClose: 2000,
       });
-
+      const token = generateToken(user);
+      localStorage.setItem("mindbrain_token", token);
+      localStorage.setItem("mindbrain_user", JSON.stringify(user));
+      login();
       navigate("/userdashboard");
+
     } catch (error) {
       toast.error("Server error", {
         position: "top-center",
