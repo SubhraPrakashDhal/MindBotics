@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
-import { FaPlus, FaEdit, FaMicrochip, FaTimes, FaExternalLinkAlt } from "react-icons/fa";
+import Fuse from "fuse.js";
+import { FaPlus, FaEdit, FaMicrochip, FaTimes, FaExternalLinkAlt, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 const DevicesPage = () => {
@@ -11,6 +12,10 @@ const DevicesPage = () => {
   const [color, setColor] = useState("#38bdf8");
   const [showModal, setShowModal] = useState(false);
   const [selectedCat, setSelectedCat] = useState(null);
+
+  // 🔥 SEARCH STATES
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const user = JSON.parse(localStorage.getItem("mindbrain_user"));
 
@@ -29,6 +34,31 @@ const DevicesPage = () => {
     }
     fetchCategories();
   }, []);
+
+  // 🔥 DEBOUNCE LOGIC (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // 🔥 FUSE INSTANCE
+  const fuse = useMemo(() => {
+    return new Fuse(categories, {
+      keys: ["name", "notes"],
+      threshold: 0.4, // lower = stricter
+    });
+  }, [categories]);
+
+  // 🔥 FILTERED DATA (FUZZY + DEBOUNCED)
+  const filteredCategories = useMemo(() => {
+    if (!debouncedSearch) return categories;
+
+    const results = fuse.search(debouncedSearch);
+    return results.map((result) => result.item);
+  }, [debouncedSearch, categories, fuse]);
 
   const handleAdd = async () => {
     if (!newCategory || !user?.id) return;
@@ -59,6 +89,20 @@ const DevicesPage = () => {
     fetchCategories();
   };
 
+  const handleDelete = async (id) => {
+    const ok = window.confirm("Are you sure you want to delete this category?");
+    if (!ok) return;
+
+    try {
+      await axios.delete(`http://localhost:3000/categories/${id}`);
+      fetchCategories();
+      setSelectedCat(null);
+    } catch (err) {
+      console.log(err);
+      alert("Failed to delete category");
+    }
+  };
+
   const resetForm = () => {
     setNewCategory("");
     setNotes("");
@@ -71,29 +115,22 @@ const DevicesPage = () => {
     setSelectedCat(selectedCat?.id === cat.id ? null : cat);
   };
 
-
-
   return (
-    // 🔥 OUTSIDE CLICK → UNSELECT
-    <div
-      className="p-6 text-white"
-      onClick={() => setSelectedCat(null)}
-    >
+    <div className="p-6 text-white" onClick={() => setSelectedCat(null)}>
 
       {/* 🔥 TOP BAR */}
       <div
         className="flex justify-between items-center mb-8"
         onClick={(e) => e.stopPropagation()}
       >
-
         <input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search device category..."
           className="px-5 py-3 w-[320px] rounded-full bg-white/10 backdrop-blur-md border border-white/10 outline-none focus:ring-2 focus:ring-cyan-400 transition"
         />
 
         <div className="flex gap-4">
-
-          {/* ADD BUTTON */}
           <button
             onClick={() => {
               resetForm();
@@ -105,7 +142,6 @@ const DevicesPage = () => {
             <FaPlus /> Add Card
           </button>
 
-          {/* UPDATE BUTTON */}
           <button
             onClick={() => {
               if (!selectedCat) {
@@ -123,7 +159,6 @@ const DevicesPage = () => {
           >
             <FaEdit /> Update
           </button>
-
         </div>
       </div>
 
@@ -132,19 +167,29 @@ const DevicesPage = () => {
         className="grid grid-cols-3 gap-8"
         onClick={(e) => e.stopPropagation()}
       >
-
-        {categories.map((cat) => (
+        {filteredCategories.map((cat) => (
           <div
             key={cat.id}
             onClick={() => handleSelect(cat)}
             style={{ borderColor: cat.color }}
-            className={`p-6 rounded-2xl border cursor-pointer transition-all duration-300 shadow-xl
+            className={`relative p-6 rounded-2xl border cursor-pointer transition-all duration-300 shadow-xl
               ${
                 selectedCat?.id === cat.id
                   ? "bg-gradient-to-br from-cyan-400 to-blue-500 text-black scale-105"
                   : "bg-white/5 border-white/10 hover:bg-white/10 hover:scale-105"
               }`}
           >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(cat.id);
+              }}
+              className="absolute top-3 right-3 p-2 rounded-full bg-red-500/80 hover:bg-red-600 text-white"
+              title="Delete Category"
+            >
+              <FaTrash size={14} />
+            </button>
+
             <div className="flex items-center gap-3 mb-3 text-2xl">
               <FaMicrochip />
               <h2 className="text-xl font-bold">{cat.name}</h2>
@@ -158,40 +203,41 @@ const DevicesPage = () => {
               Components: {cat.components.length}
             </p>
 
-            {/* 🔥 OPEN COMPONENTS BUTTON */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(`/userdashboard/category/${cat.id}`);
               }}
-              className="mt-4 flex items-center gap-2 px-3 py-2 bg-cyan-500 rounded text-black text-sm font-semibold"
+              className={`mt-4 flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold ${
+                selectedCat?.id === cat.id ? "bg-black text-white" : "bg-cyan-500 text-black"
+              }`}
             >
               Open <FaExternalLinkAlt size={12} />
             </button>
-
           </div>
         ))}
 
+        {filteredCategories.length === 0 && (
+          <div className="text-center col-span-3 text-gray-400 mt-10">
+            No matching categories found.
+          </div>
+        )}
       </div>
 
-      {/* 🔥 MODAL (same as before) */}
+      {/* 🔥 MODAL SAME AS BEFORE */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
-
           <div className="bg-[#0F172A] p-8 rounded-2xl w-[420px] shadow-2xl border border-white/10">
-
             <div className="flex justify-between mb-6">
               <h2 className="text-xl font-bold">
                 {selectedCat ? "Update Category" : "Create Category"}
               </h2>
-
               <button onClick={resetForm}>
                 <FaTimes />
               </button>
             </div>
 
             <div className="flex flex-col gap-4">
-
               <input
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
@@ -228,12 +274,10 @@ const DevicesPage = () => {
                   Create Category
                 </button>
               )}
-
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };

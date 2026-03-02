@@ -39,20 +39,43 @@
   ],
   "categories": [
     {
-      "id": "91f5",
-      "name": "servo motor",
-      "notes": "it is a motor",
-      "color": "#733af8",
-      "userId": "95c1",
-      "components": []
-    },
-    {
       "id": "0ac7",
       "name": "Microcontroller",
       "notes": "mind",
       "color": "#38bdf8",
       "userId": "95c1",
-      "components": []
+      "components": [
+        {
+          "id": "1",
+          "name": "hvkscdbefj",
+          "price": 122,
+          "total": 24,
+          "inUse": 21,
+          "logs": [
+            {
+              "person": "gudu",
+              "quantity": 22,
+              "date": "2026-02-22"
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "name": "micro",
+          "price": 80,
+          "total": 119,
+          "inUse": 0,
+          "logs": []
+        },
+        {
+          "id": "3",
+          "name": "dtata",
+          "price": 40,
+          "total": 12,
+          "inUse": 2,
+          "logs": []
+        }
+      ]
     },
     {
       "id": "2541",
@@ -65,31 +88,8 @@
           "id": "1",
           "name": "motorrishi",
           "price": 400,
-          "total": 11,
-          "inUse": 7,
-          "logs": [
-            {
-              "person": "gudu",
-              "quantity": 1,
-              "date": "2026-02-20"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "4124",
-      "name": "wire",
-      "notes": "",
-      "color": "#38bdf8",
-      "userId": "95c1",
-      "components": [
-        {
-          "id": "1",
-          "name": "red wire",
-          "price": 5,
-          "total": 21,
-          "inUse": 12,
+          "total": 8,
+          "inUse": 6,
           "logs": []
         }
       ]

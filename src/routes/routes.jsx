@@ -8,6 +8,8 @@ import PrivateRouting from "../privaterouting/Privaterouting";
 import DashboardHome from "../components/dashbooard/userdashboard/userDashboardcomponent/DashboardHome";
 import CategoryComponentsPage from "../components/dashbooard/userdashboard/userDashboardcomponent/CategoryComponentsPage";
 import DevicesPage from "../components/dashbooard/userdashboard/userDashboardcomponent/DevicesPage";
+import DeviceIssuePage from "../components/dashbooard/userdashboard/userDashboardcomponent/DeviceIssuePage";
+import Settings from "../components/dashbooard/userdashboard/userDashboardcomponent/Settings";
 
 export const routes = createBrowserRouter([
     {
@@ -25,16 +27,24 @@ export const routes = createBrowserRouter([
                     </PrivateRouting>,
                 children:[
                     {
-                        index:true,
+                        path:"/userdashboard",
                         element:<DashboardHome/>
                     },
                     {
-                        path: "createpost/:id",
+                        path: "/userdashboard/devicedata/:id",
                         element: <DevicesPage />,
                     },
                     {
-                        path: "category/:categoryId",
+                        path: "/userdashboard/category/:categoryId",
                         element: <CategoryComponentsPage/>,
+                    },
+                    {
+                        path:"/userdashboard/issuedevice/:id",
+                        element:<DeviceIssuePage/>
+                    },
+                    {
+                        path:"/userdashboard/settings",
+                        element:<Settings/>
                     }
                 ]  
             }

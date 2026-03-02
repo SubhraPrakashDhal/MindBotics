@@ -6,12 +6,13 @@ import {
   FaEdit,
   FaTrash,
   FaUserCheck,
+  FaListUl,
 } from "react-icons/fa";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 const CategoryComponentsPage = () => {
   const { categoryId } = useParams();
-
+  const navigate = useNavigate();
   const [category, setCategory] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
@@ -19,6 +20,15 @@ const CategoryComponentsPage = () => {
   // ⭐ ISSUE MODAL STATES
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueIndex, setIssueIndex] = useState(null);
+
+  // ⭐ SHOW ISSUES TAB
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [logsComponentIndex, setLogsComponentIndex] = useState(null);
+
+  // 🔍 LOG FILTER STATES (ADDED)
+  const [logSearch, setLogSearch] = useState("");
+  const [logFrom, setLogFrom] = useState("");
+  const [logTo, setLogTo] = useState("");
 
   const [issueForm, setIssueForm] = useState({
     person: "",
@@ -161,8 +171,16 @@ const CategoryComponentsPage = () => {
     }
   };
 
-  // ⭐ OPEN ISSUE MODAL
+  // ⭐ OPEN ISSUE MODAL (BLOCK IF NO STOCK)
   const openIssueModal = (i) => {
+    const comp = category.components[i];
+    const available = comp.total - comp.inUse;
+
+    if (available <= 0) {
+  alert("This device is out of stock.");
+  return;
+}
+
     setIssueIndex(i);
     setIssueForm({
       person: "",
@@ -172,43 +190,50 @@ const CategoryComponentsPage = () => {
     setShowIssueModal(true);
   };
 
-  // ⭐ SAVE ISSUE DETAILS
-  const saveIssueDetails = async () => {
-    if (!category || issueIndex === null) return;
+// ⭐ SAVE ISSUE DETAILS (DOUBLE CHECK)
+const saveIssueDetails = async () => {
+  if (!category || issueIndex === null) return;
 
-    const updated = [...category.components];
-    const comp = updated[issueIndex];
+  const updated = [...category.components];
+  const comp = updated[issueIndex];
 
-    const qty = Number(issueForm.quantity) || 0;
+  const qty = Number(issueForm.quantity) || 0;
+  const available = comp.total - comp.inUse;
 
-    if (qty <= 0) return alert("Invalid quantity");
-    if (qty > comp.total) return alert("Not enough stock!");
+  if (qty > available) {
+    return alert(`Only ${available} items are available in stock.`);
+  }
 
-    comp.total -= qty;
-    comp.inUse += qty;
+  // ✅ total ko touch mat karo
+  comp.inUse += qty;
 
-    if (!comp.logs) comp.logs = [];
+  if (!comp.logs) comp.logs = [];
 
-    comp.logs.push({
-      person: issueForm.person || "Unknown",
-      quantity: qty,
-      date: issueForm.date,
-    });
+  comp.logs.push({
+    person: issueForm.person || "Unknown",
+    quantity: qty,
+    date: issueForm.date,
+  });
 
-    await updateDB(updated);
-    setShowIssueModal(false);
+  await updateDB(updated);
+  setShowIssueModal(false);
+};
+  // ⭐ OPEN LOGS MODAL
+  const openLogsModal = (i) => {
+    setLogsComponentIndex(i);
+    setShowLogsModal(true);
+    setLogSearch("");
+    setLogFrom("");
+    setLogTo("");
   };
 
   if (!category) return <div className="p-6 text-white">Loading...</div>;
 
   return (
     <div className="p-6 text-white">
-
       {/* TOP BAR */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">
-          {category.name} Components
-        </h1>
+        <h1 className="text-2xl font-bold">{category.name} Components</h1>
 
         <button
           onClick={() => setShowModal(true)}
@@ -222,7 +247,6 @@ const CategoryComponentsPage = () => {
 
       {/* TABLE */}
       <table className="w-full text-center border border-white/10">
-
         <thead className="bg-white/10">
           <tr>
             <th>ID</th>
@@ -249,19 +273,35 @@ const CategoryComponentsPage = () => {
                 <td>₹{c.price}</td>
 
                 <td>
-                  <button onClick={() => decTotal(i)}
-                    className="px-2 py-1 bg-cyan-600 rounded text-xs">−</button>
+                  <button
+                    onClick={() => decTotal(i)}
+                    className="px-2 py-1 bg-cyan-600 rounded text-xs"
+                  >
+                    −
+                  </button>
                   <span className="mx-2">{c.total}</span>
-                  <button onClick={() => incTotal(i)}
-                    className="px-2 py-1 bg-cyan-400 text-black rounded text-xs">+</button>
+                  <button
+                    onClick={() => incTotal(i)}
+                    className="px-2 py-1 bg-cyan-400 text-black rounded text-xs"
+                  >
+                    +
+                  </button>
                 </td>
 
                 <td>
-                  <button onClick={() => decUse(i)}
-                    className="px-2 py-1 bg-cyan-600 rounded text-xs">−</button>
+                  <button
+                    onClick={() => decUse(i)}
+                    className="px-2 py-1 bg-cyan-600 rounded text-xs"
+                  >
+                    −
+                  </button>
                   <span className="mx-2">{c.inUse}</span>
-                  <button onClick={() => incUse(i)}
-                    className="px-2 py-1 bg-cyan-400 text-black rounded text-xs">+</button>
+                  <button
+                    onClick={() => incUse(i)}
+                    className="px-2 py-1 bg-cyan-400 text-black rounded text-xs"
+                  >
+                    +
+                  </button>
                 </td>
 
                 <td>{available}</td>
@@ -284,15 +324,23 @@ const CategoryComponentsPage = () => {
                   </button>
                 </td>
 
-                {/* ISSUE BUTTON */}
+                {/* ISSUE + SHOW ISSUES */}
                 <td className="text-right pr-4">
-                  <button
-                    onClick={() => openIssueModal(i)}
-                    className="px-3 py-1 bg-purple-500 rounded text-xs
-                    flex items-center gap-1 ml-auto"
-                  >
-                    <FaUserCheck /> Issue
-                  </button>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => openIssueModal(i)}
+                      className="px-3 py-1 bg-purple-500 rounded text-xs flex items-center gap-1"
+                    >
+                      <FaUserCheck /> Issue
+                    </button>
+
+                    <button
+                      onClick={() => openLogsModal(i)}
+                      className="px-3 py-1 bg-cyan-500 rounded text-xs flex items-center gap-1 text-black"
+                    >
+                      <FaListUl /> Show Issues
+                    </button>
+                  </div>
                 </td>
               </tr>
             );
@@ -313,13 +361,9 @@ const CategoryComponentsPage = () => {
 
       {/* ISSUE MODAL */}
       {showIssueModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/60">
-
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
           <div className="bg-[#0F172A] p-8 rounded-2xl w-[420px]">
-
-            <h2 className="text-xl font-bold mb-4">
-              Issue Component
-            </h2>
+            <h2 className="text-xl font-bold mb-4">Issue Component</h2>
 
             <input
               placeholder="Person Name"
@@ -362,52 +406,148 @@ const CategoryComponentsPage = () => {
             >
               Cancel
             </button>
-
           </div>
         </div>
       )}
 
+      {/* SHOW ISSUES MODAL */}
+      {showLogsModal && logsComponentIndex !== null && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
+          <div className="bg-[#0F172A] p-6 rounded-2xl w-[520px] max-h-[70vh] overflow-y-auto border border-white/10">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold">
+                Issued Logs – {category.components[logsComponentIndex].name}
+              </h2>
+              <button
+                onClick={() => setShowLogsModal(false)}
+                className="text-red-400 text-sm"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* 🔍 LOG FILTERS */}
+            <div className="flex gap-2 mb-3">
+              <input
+                placeholder="Search person..."
+                value={logSearch}
+                onChange={(e) => setLogSearch(e.target.value)}
+                className="bg-white/10 p-2 rounded w-full"
+              />
+              <input
+                type="date"
+                value={logFrom}
+                onChange={(e) => setLogFrom(e.target.value)}
+                className="bg-white/10 p-2 rounded"
+              />
+              <input
+                type="date"
+                value={logTo}
+                onChange={(e) => setLogTo(e.target.value)}
+                className="bg-white/10 p-2 rounded"
+              />
+            </div>
+
+            {(!category.components[logsComponentIndex].logs ||
+              category.components[logsComponentIndex].logs.length === 0) ? (
+              <p className="opacity-70 text-sm">
+                No issues recorded for this component.
+              </p>
+            ) : (
+              <table className="w-full text-sm border border-white/10">
+                <thead className="bg-white/10">
+                  <tr>
+                    <th className="p-2 text-left">Person</th>
+                    <th className="p-2 text-left">Qty</th>
+                    <th className="p-2 text-left">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {category.components[logsComponentIndex].logs
+                    .filter((l) => {
+                      const personOk = l.person
+                        ?.toLowerCase()
+                        .includes(logSearch.toLowerCase());
+                      const fromOk = logFrom
+                        ? new Date(l.date) >= new Date(logFrom)
+                        : true;
+                      const toOk = logTo
+                        ? new Date(l.date) <= new Date(logTo)
+                        : true;
+                      return personOk && fromOk && toOk;
+                    })
+                    .map((log, idx) => (
+                      <tr key={idx} className="border-t border-white/10">
+                        <td className="p-2 capitalize">{log.person}</td>
+                        <td className="p-2">{log.quantity}</td>
+                        <td className="p-2">{log.date}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 // SMALL MODAL COMPONENT
 const Modal = ({ title, onClose, form, onChange, onSave }) => (
-  <div className="fixed inset-0 flex items-center justify-center bg-black/60">
+  <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
     <div className="bg-[#0F172A] p-8 rounded-2xl w-[420px]">
-
       <div className="flex justify-between mb-6">
         <h2 className="text-xl font-bold">{title}</h2>
-        <button onClick={onClose}><FaTimes /></button>
+        <button onClick={onClose}>
+          <FaTimes />
+        </button>
       </div>
 
       <div className="flex flex-col gap-3">
+        <input
+          name="id"
+          placeholder="ID"
+          value={form.id}
+          onChange={onChange}
+          className="bg-white/10 p-2 rounded"
+        />
 
-        <input name="id" placeholder="ID"
-          value={form.id} onChange={onChange}
-          className="bg-white/10 p-2 rounded" />
+        <input
+          name="name"
+          placeholder="Name"
+          value={form.name}
+          onChange={onChange}
+          className="bg-white/10 p-2 rounded"
+        />
 
-        <input name="name" placeholder="Name"
-          value={form.name} onChange={onChange}
-          className="bg-white/10 p-2 rounded" />
+        <input
+          name="price"
+          placeholder="Price"
+          value={form.price}
+          onChange={onChange}
+          className="bg-white/10 p-2 rounded"
+        />
 
-        <input name="price" placeholder="Price"
-          value={form.price} onChange={onChange}
-          className="bg-white/10 p-2 rounded" />
+        <input
+          name="total"
+          placeholder="Stock"
+          value={form.total}
+          onChange={onChange}
+          className="bg-white/10 p-2 rounded"
+        />
 
-        <input name="total" placeholder="Stock"
-          value={form.total} onChange={onChange}
-          className="bg-white/10 p-2 rounded" />
+        <input
+          name="inUse"
+          placeholder="In Use"
+          value={form.inUse}
+          onChange={onChange}
+          className="bg-white/10 p-2 rounded"
+        />
 
-        <input name="inUse" placeholder="In Use"
-          value={form.inUse} onChange={onChange}
-          className="bg-white/10 p-2 rounded" />
-
-        <button onClick={onSave}
-          className="bg-green-500 p-2 rounded mt-2">
+        <button onClick={onSave} className="bg-green-500 p-2 rounded mt-2">
           Save
         </button>
-
       </div>
     </div>
   </div>
