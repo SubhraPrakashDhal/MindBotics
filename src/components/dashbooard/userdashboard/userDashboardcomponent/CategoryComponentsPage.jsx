@@ -9,11 +9,14 @@ import {
   FaListUl,
 } from "react-icons/fa";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTheme } from "../../../../customHooks/useTheme";
 
 const CategoryComponentsPage = () => {
   const { categoryId } = useParams();
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const [category, setCategory] = useState(null);
+  const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
 
@@ -47,12 +50,15 @@ const CategoryComponentsPage = () => {
   // FETCH CATEGORY
   const fetchCategory = async () => {
     try {
+      setError(null);
       const res = await axios.get(
-        `http://localhost:3000/categories/${categoryId}`
+        `/api/categories/${categoryId}`
       );
       setCategory(res.data);
     } catch (err) {
       console.log("Fetch category failed:", err.message);
+      setError(err.message || "Failed to load category");
+      setCategory(null);
     }
   };
 
@@ -69,13 +75,42 @@ const CategoryComponentsPage = () => {
   const handleSave = async () => {
     if (!category) return;
 
+    // Validation
+    if (!form.name.trim()) {
+      alert("Component name is required");
+      return;
+    }
+
+    const price = Number(form.price);
+    if (isNaN(price) || price < 0) {
+      alert("Please enter a valid price (positive number)");
+      return;
+    }
+
+    const total = Number(form.total);
+    if (isNaN(total) || total < 0) {
+      alert("Please enter a valid total quantity (positive number)");
+      return;
+    }
+
+    const inUse = Number(form.inUse);
+    if (isNaN(inUse) || inUse < 0) {
+      alert("Please enter a valid in-use quantity (positive number or 0)");
+      return;
+    }
+
+    if (inUse > total) {
+      alert("In-use quantity cannot exceed total quantity");
+      return;
+    }
+
     const updated = [...(category.components || [])];
 
     const newComponent = {
       ...form,
-      price: Number(form.price) || 0,
-      total: Number(form.total) || 0,
-      inUse: Number(form.inUse) || 0,
+      price: price,
+      total: total,
+      inUse: inUse,
       logs: editIndex !== null ? updated[editIndex]?.logs || [] : [],
     };
 
@@ -84,7 +119,7 @@ const CategoryComponentsPage = () => {
 
     try {
       await axios.patch(
-        `http://localhost:3000/categories/${categoryId}`,
+        `/api/categories/${categoryId}`,
         { components: updated }
       );
 
@@ -92,8 +127,10 @@ const CategoryComponentsPage = () => {
       setForm({ id: "", name: "", price: "", total: "", inUse: "" });
       setEditIndex(null);
       setShowModal(false);
+      alert(editIndex !== null ? "Component updated successfully!" : "Component added successfully!");
     } catch (err) {
       console.log("Save component failed:", err.message);
+      alert("Failed to save component: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -106,7 +143,7 @@ const CategoryComponentsPage = () => {
 
     try {
       await axios.patch(
-        `http://localhost:3000/categories/${categoryId}`,
+        `/api/categories/${categoryId}`,
         { components: updated }
       );
       setCategory({ ...category, components: updated });
@@ -133,14 +170,16 @@ const CategoryComponentsPage = () => {
   const incTotal = async (i) => {
     if (!category) return;
     const updated = [...category.components];
-    updated[i].total += 1;
+    updated[i].total = Number(updated[i].total) + 1;
     await updateDB(updated);
   };
 
   const decTotal = async (i) => {
     if (!category) return;
     const updated = [...category.components];
-    if (updated[i].total > updated[i].inUse) updated[i].total -= 1;
+    const total = Number(updated[i].total);
+    const inUse = Number(updated[i].inUse);
+    if (total > inUse) updated[i].total = total - 1;
     await updateDB(updated);
   };
 
@@ -148,21 +187,24 @@ const CategoryComponentsPage = () => {
   const incUse = async (i) => {
     if (!category) return;
     const updated = [...category.components];
-    if (updated[i].inUse < updated[i].total) updated[i].inUse += 1;
+    const total = Number(updated[i].total);
+    const inUse = Number(updated[i].inUse);
+    if (inUse < total) updated[i].inUse = inUse + 1;
     await updateDB(updated);
   };
 
   const decUse = async (i) => {
     if (!category) return;
     const updated = [...category.components];
-    if (updated[i].inUse > 0) updated[i].inUse -= 1;
+    const inUse = Number(updated[i].inUse);
+    if (inUse > 0) updated[i].inUse = inUse - 1;
     await updateDB(updated);
   };
 
   const updateDB = async (updated) => {
     try {
       await axios.patch(
-        `http://localhost:3000/categories/${categoryId}`,
+        `/api/categories/${categoryId}`,
         { components: updated }
       );
       setCategory({ ...category, components: updated });
@@ -174,12 +216,14 @@ const CategoryComponentsPage = () => {
   // ⭐ OPEN ISSUE MODAL (BLOCK IF NO STOCK)
   const openIssueModal = (i) => {
     const comp = category.components[i];
-    const available = comp.total - comp.inUse;
+    const total = Number(comp.total) || 0;
+    const inUse = Number(comp.inUse) || 0;
+    const available = total - inUse;
 
     if (available <= 0) {
-  alert("This device is out of stock.");
-  return;
-}
+      alert("This device is out of stock.");
+      return;
+    }
 
     setIssueIndex(i);
     setIssueForm({
@@ -198,14 +242,27 @@ const saveIssueDetails = async () => {
   const comp = updated[issueIndex];
 
   const qty = Number(issueForm.quantity) || 0;
-  const available = comp.total - comp.inUse;
+  const total = Number(comp.total) || 0;
+  const inUse = Number(comp.inUse) || 0;
+  const available = total - inUse;
+
+  if (!issueForm.person.trim()) {
+    return alert("Please enter person name");
+  }
+
+  if (qty <= 0) {
+    return alert("Quantity must be greater than 0");
+  }
 
   if (qty > available) {
-    return alert(`Only ${available} items are available in stock.`);
+    return alert(
+      `Cannot issue ${qty} items. Only ${available} items are available in stock.\n\nTotal: ${total}\nIn Use: ${inUse}\nAvailable: ${available}`
+    );
   }
 
   // ✅ total ko touch mat karo
-  comp.inUse += qty;
+  const newInUse = inUse + qty;
+  comp.inUse = newInUse;
 
   if (!comp.logs) comp.logs = [];
 
@@ -217,6 +274,9 @@ const saveIssueDetails = async () => {
 
   await updateDB(updated);
   setShowIssueModal(false);
+  alert(
+    `Issue recorded successfully!\n\n${comp.name}\nIssued: ${qty}\nNew In-Use: ${newInUse}\nNew Available: ${total - newInUse}`
+  );
 };
   // ⭐ OPEN LOGS MODAL
   const openLogsModal = (i) => {
@@ -227,126 +287,222 @@ const saveIssueDetails = async () => {
     setLogTo("");
   };
 
-  if (!category) return <div className="p-6 text-white">Loading...</div>;
+  if (error) return <div className={`p-6 transition-all duration-300 ${
+    theme === "dark" ? "text-red-400" : "text-red-500"
+  }`}>Error: {error}</div>;
+  if (!category) return <div className={`p-6 transition-all duration-300 ${
+    theme === "dark" ? "text-white" : "text-slate-900"
+  }`}>Loading category...</div>;
 
   return (
-    <div className="p-6 text-white">
+    <div className={`p-6 transition-all duration-300 ${
+      theme === "dark"
+        ? "text-white"
+        : "text-slate-900"
+    }`}>
       {/* TOP BAR */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{category.name} Components</h1>
+        <h1 className={`text-2xl font-bold transition-all duration-300 ${
+          theme === "dark" ? "text-white" : "text-slate-900"
+        }`}>{category.name} Components</h1>
 
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2 rounded-full
-          bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-semibold
-          hover:scale-105 transition shadow-lg"
+          className={`flex items-center gap-2 px-5 py-2 rounded-full text-black font-semibold border-2 transition-all duration-300 hover:scale-105 hover:shadow-xl ${
+            theme === "dark"
+              ? "bg-gradient-to-r from-cyan-400 to-blue-500 border-cyan-300"
+              : "bg-gradient-to-r from-blue-500 to-cyan-400 border-blue-400"
+          }`}
         >
           <FaPlus /> Add Component
         </button>
       </div>
 
       {/* TABLE */}
-      <table className="w-full text-center border border-white/10">
-        <thead className="bg-white/10">
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Price</th>
-            <th>Total</th>
-            <th>In Use</th>
-            <th>Available</th>
-            <th>Value</th>
-            <th>Actions</th>
-            <th>Issue</th>
-          </tr>
-        </thead>
+      <div className={`rounded-lg border-2 overflow-hidden transition-all duration-300 ${
+        theme === "dark"
+          ? "border-white/10 bg-white/5"
+          : "border-slate-300/50 bg-slate-100/30"
+      }`}>
+        <table className="w-full text-center">
+          <thead className={`transition-all duration-300 ${
+            theme === "dark"
+              ? "bg-slate-950/50 border-b border-white/10"
+              : "bg-slate-200/50 border-b border-slate-300/50"
+          }`}>
+            <tr>
+              <th className={`p-3 font-semibold transition-all duration-300 ${
+                theme === "dark" ? "text-cyan-300" : "text-blue-700"
+              }`}>ID</th>
+              <th className={`p-3 font-semibold transition-all duration-300 ${
+                theme === "dark" ? "text-cyan-300" : "text-blue-700"
+              }`}>Name</th>
+              <th className={`p-3 font-semibold transition-all duration-300 ${
+                theme === "dark" ? "text-cyan-300" : "text-blue-700"
+              }`}>Price</th>
+              <th className={`p-3 font-semibold transition-all duration-300 ${
+                theme === "dark" ? "text-cyan-300" : "text-blue-700"
+              }`}>Total</th>
+              <th className={`p-3 font-semibold transition-all duration-300 ${
+                theme === "dark" ? "text-cyan-300" : "text-blue-700"
+              }`}>In Use</th>
+              <th className={`p-3 font-semibold transition-all duration-300 ${
+                theme === "dark" ? "text-cyan-300" : "text-blue-700"
+              }`}>Available</th>
+              <th className={`p-3 font-semibold transition-all duration-300 ${
+                theme === "dark" ? "text-cyan-300" : "text-blue-700"
+              }`}>Value</th>
+              <th className={`p-3 font-semibold transition-all duration-300 ${
+                theme === "dark" ? "text-cyan-300" : "text-blue-700"
+              }`}>Actions</th>
+              <th className={`p-3 font-semibold transition-all duration-300 ${
+                theme === "dark" ? "text-cyan-300" : "text-blue-700"
+              }`}>Issue</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {(category.components || []).map((c, i) => {
-            const available = c.total - c.inUse;
-            const value = c.total * c.price;
+          <tbody>
+            {(category.components || []).map((c, i) => {
+              const total = Number(c.total) || 0;
+              const inUse = Number(c.inUse) || 0;
+              const price = Number(c.price) || 0;
+              const available = total - inUse;
+              const value = total * price;
 
-            return (
-              <tr key={i} className="border-t border-white/10">
-                <td>{c.id}</td>
-                <td>{c.name}</td>
-                <td>₹{c.price}</td>
+              return (
+                <tr key={i} className={`transition-all duration-300 ${
+                  theme === "dark"
+                    ? "border-t border-white/10 hover:bg-white/8"
+                    : "border-t border-slate-300/30 hover:bg-slate-300/20"
+                }`}>
+                  <td className={`p-3 transition-all duration-300 ${
+                    theme === "dark" ? "text-white" : "text-slate-900"
+                  }`}>{c.id}</td>
+                  <td className={`p-3 transition-all duration-300 ${
+                    theme === "dark" ? "text-white" : "text-slate-900"
+                  }`}>{c.name}</td>
+                  <td className={`p-3 transition-all duration-300 ${
+                    theme === "dark" ? "text-white" : "text-slate-900"
+                  }`}>₹{price}</td>
 
-                <td>
-                  <button
-                    onClick={() => decTotal(i)}
-                    className="px-2 py-1 bg-cyan-600 rounded text-xs"
-                  >
-                    −
-                  </button>
-                  <span className="mx-2">{c.total}</span>
-                  <button
-                    onClick={() => incTotal(i)}
-                    className="px-2 py-1 bg-cyan-400 text-black rounded text-xs"
-                  >
-                    +
-                  </button>
-                </td>
-
-                <td>
-                  <button
-                    onClick={() => decUse(i)}
-                    className="px-2 py-1 bg-cyan-600 rounded text-xs"
-                  >
-                    −
-                  </button>
-                  <span className="mx-2">{c.inUse}</span>
-                  <button
-                    onClick={() => incUse(i)}
-                    className="px-2 py-1 bg-cyan-400 text-black rounded text-xs"
-                  >
-                    +
-                  </button>
-                </td>
-
-                <td>{available}</td>
-                <td>₹{value}</td>
-
-                {/* ACTIONS */}
-                <td className="flex justify-center gap-2 py-2">
-                  <button
-                    onClick={() => editComponent(i)}
-                    className="px-2 py-1 bg-yellow-500 rounded text-xs"
-                  >
-                    <FaEdit />
-                  </button>
-
-                  <button
-                    onClick={() => deleteComponent(i)}
-                    className="px-2 py-1 bg-red-500 rounded text-xs"
-                  >
-                    <FaTrash />
-                  </button>
-                </td>
-
-                {/* ISSUE + SHOW ISSUES */}
-                <td className="text-right pr-4">
-                  <div className="flex justify-end gap-2">
+                  <td className="p-3">
                     <button
-                      onClick={() => openIssueModal(i)}
-                      className="px-3 py-1 bg-purple-500 rounded text-xs flex items-center gap-1"
+                      onClick={() => decTotal(i)}
+                      className={`px-2 py-1 rounded text-xs transition-all duration-300 border ${
+                        theme === "dark"
+                          ? "bg-cyan-600/80 border-cyan-500 hover:bg-cyan-700 text-white"
+                          : "bg-blue-500/80 border-blue-400 hover:bg-blue-600 text-white"
+                      }`}
                     >
-                      <FaUserCheck /> Issue
+                      −
                     </button>
-
+                    <span className={`mx-2 transition-all duration-300 ${
+                      theme === "dark" ? "text-white" : "text-slate-900"
+                    }`}>{total}</span>
                     <button
-                      onClick={() => openLogsModal(i)}
-                      className="px-3 py-1 bg-cyan-500 rounded text-xs flex items-center gap-1 text-black"
+                      onClick={() => incTotal(i)}
+                      className={`px-2 py-1 rounded text-xs transition-all duration-300 border ${
+                        theme === "dark"
+                          ? "bg-cyan-400 border-cyan-300 hover:bg-cyan-500 text-black"
+                          : "bg-blue-400 border-blue-300 hover:bg-blue-500 text-white"
+                      }`}
                     >
-                      <FaListUl /> Show Issues
+                      +
                     </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </td>
+
+                  <td className="p-3">
+                    <button
+                      onClick={() => decUse(i)}
+                      className={`px-2 py-1 rounded text-xs transition-all duration-300 border ${
+                        theme === "dark"
+                          ? "bg-cyan-600/80 border-cyan-500 hover:bg-cyan-700 text-white"
+                          : "bg-blue-500/80 border-blue-400 hover:bg-blue-600 text-white"
+                      }`}
+                    >
+                      −
+                    </button>
+                    <span className={`mx-2 transition-all duration-300 ${
+                      theme === "dark" ? "text-white" : "text-slate-900"
+                    }`}>{inUse}</span>
+                    <button
+                      onClick={() => incUse(i)}
+                      className={`px-2 py-1 rounded text-xs transition-all duration-300 border ${
+                        theme === "dark"
+                          ? "bg-cyan-400 border-cyan-300 hover:bg-cyan-500 text-black"
+                          : "bg-blue-400 border-blue-300 hover:bg-blue-500 text-white"
+                      }`}
+                    >
+                      +
+                    </button>
+                  </td>
+
+                  <td className={`p-3 transition-all duration-300 ${
+                    theme === "dark" ? "text-white" : "text-slate-900"
+                  }`}>{available}</td>
+                  <td className={`p-3 transition-all duration-300 ${
+                    theme === "dark" ? "text-white" : "text-slate-900"
+                  }`}>₹{value}</td>
+
+                  {/* ACTIONS */}
+                  <td className={`py-2 transition-all duration-300`}>
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={() => editComponent(i)}
+                        className={`px-2 py-1 rounded text-xs transition-all duration-300 border ${
+                          theme === "dark"
+                            ? "bg-gradient-to-r from-yellow-500 to-amber-500 text-black border-yellow-400 hover:shadow-yellow-500/50"
+                            : "bg-gradient-to-r from-amber-400 to-orange-400 text-black border-amber-300 hover:shadow-amber-400/50"
+                        } hover:shadow-lg hover:scale-105`}
+                      >
+                        <FaEdit />
+                      </button>
+
+                      <button
+                        onClick={() => deleteComponent(i)}
+                        className={`px-2 py-1 rounded text-xs transition-all duration-300 border ${
+                          theme === "dark"
+                            ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-red-500 hover:shadow-red-500/50"
+                            : "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-400 hover:shadow-red-400/50"
+                        } hover:shadow-lg hover:scale-105`}
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </td>
+
+                  {/* ISSUE + SHOW ISSUES */}
+                  <td className="p-2">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => openIssueModal(i)}
+                        className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-all duration-300 border hover:scale-105 ${
+                          theme === "dark"
+                            ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-500 hover:shadow-purple-500/50"
+                            : "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-indigo-400 hover:shadow-indigo-400/50"
+                        } hover:shadow-lg`}
+                      >
+                        <FaUserCheck /> Issue
+                      </button>
+
+                      <button
+                        onClick={() => openLogsModal(i)}
+                        className={`px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-all duration-300 border hover:scale-105 ${
+                          theme === "dark"
+                            ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-black border-cyan-400 hover:shadow-cyan-500/50"
+                            : "bg-gradient-to-r from-blue-500 to-cyan-400 text-white border-blue-400 hover:shadow-blue-400/50"
+                        } hover:shadow-lg`}
+                      >
+                        <FaListUl /> Show Issues
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {/* ADD / EDIT MODAL */}
       {showModal && (
@@ -356,14 +512,57 @@ const saveIssueDetails = async () => {
           form={form}
           onChange={handleChange}
           onSave={handleSave}
+          theme={theme}
         />
       )}
 
       {/* ISSUE MODAL */}
       {showIssueModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
-          <div className="bg-[#0F172A] p-8 rounded-2xl w-[420px]">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 backdrop-blur-sm">
+          <div className={`p-8 rounded-2xl w-[420px] border-2 shadow-2xl transition-all duration-300 ${
+            theme === "dark"
+              ? "bg-gradient-to-br from-slate-900 to-slate-950 border-slate-700/50 text-white"
+              : "bg-gradient-to-br from-white to-slate-50 border-slate-300/50 text-slate-900"
+          }`}>
             <h2 className="text-xl font-bold mb-4">Issue Component</h2>
+
+            {/* STOCK INFO */}
+            {issueIndex !== null && (
+              <div className={`p-3 rounded mb-4 text-sm border-2 transition-all duration-300 ${
+                theme === "dark"
+                  ? "bg-white/10 border-white/10"
+                  : "bg-slate-200/50 border-slate-300/50"
+              }`}>
+                <p className="font-semibold mb-2">{category.components[issueIndex].name}</p>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="opacity-70">Total:</span>
+                    <p className={`font-bold transition-all duration-300 ${
+                      theme === "dark" ? "text-cyan-400" : "text-blue-600"
+                    }`}>
+                      {Number(category.components[issueIndex].total) || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="opacity-70">In Use:</span>
+                    <p className={`font-bold transition-all duration-300 ${
+                      theme === "dark" ? "text-yellow-400" : "text-amber-600"
+                    }`}>
+                      {Number(category.components[issueIndex].inUse) || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="opacity-70">Available:</span>
+                    <p className={`font-bold transition-all duration-300 ${
+                      theme === "dark" ? "text-green-400" : "text-green-600"
+                    }`}>
+                      {(Number(category.components[issueIndex].total) || 0) -
+                        (Number(category.components[issueIndex].inUse) || 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <input
               placeholder="Person Name"
@@ -371,17 +570,26 @@ const saveIssueDetails = async () => {
               onChange={(e) =>
                 setIssueForm({ ...issueForm, person: e.target.value })
               }
-              className="bg-white/10 p-2 rounded mb-2 w-full"
+              className={`p-3 rounded mb-2 w-full border-2 outline-none focus:ring-2 transition-all duration-300 ${
+                theme === "dark"
+                  ? "bg-white/10 border-slate-600 placeholder-white/50 text-white focus:ring-cyan-400 focus:border-cyan-400"
+                  : "bg-slate-200/40 border-slate-300 placeholder-slate-600 text-slate-900 focus:ring-blue-400 focus:border-blue-400"
+              }`}
             />
 
             <input
               type="number"
+              min="1"
               placeholder="Quantity"
               value={issueForm.quantity}
               onChange={(e) =>
                 setIssueForm({ ...issueForm, quantity: e.target.value })
               }
-              className="bg-white/10 p-2 rounded mb-2 w-full"
+              className={`p-3 rounded mb-2 w-full border-2 outline-none focus:ring-2 transition-all duration-300 ${
+                theme === "dark"
+                  ? "bg-white/10 border-slate-600 placeholder-white/50 text-white focus:ring-cyan-400 focus:border-cyan-400"
+                  : "bg-slate-200/40 border-slate-300 placeholder-slate-600 text-slate-900 focus:ring-blue-400 focus:border-blue-400"
+              }`}
             />
 
             <input
@@ -390,19 +598,31 @@ const saveIssueDetails = async () => {
               onChange={(e) =>
                 setIssueForm({ ...issueForm, date: e.target.value })
               }
-              className="bg-white/10 p-2 rounded mb-4 w-full"
+              className={`p-3 rounded mb-4 w-full border-2 outline-none focus:ring-2 transition-all duration-300 ${
+                theme === "dark"
+                  ? "bg-white/10 border-slate-600 text-white focus:ring-cyan-400 focus:border-cyan-400"
+                  : "bg-slate-200/40 border-slate-300 text-slate-900 focus:ring-blue-400 focus:border-blue-400"
+              }`}
             />
 
             <button
               onClick={saveIssueDetails}
-              className="bg-purple-500 p-2 rounded w-full"
+              className={`p-3 rounded w-full font-semibold transition-all duration-300 border-2 hover:scale-105 hover:shadow-lg mb-2 ${
+                theme === "dark"
+                  ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-500 hover:shadow-purple-500/50"
+                  : "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-indigo-400 hover:shadow-indigo-400/50"
+              }`}
             >
               Save Issue
             </button>
 
             <button
               onClick={() => setShowIssueModal(false)}
-              className="bg-gray-500 p-2 rounded w-full mt-2"
+              className={`p-3 rounded w-full font-semibold transition-all duration-300 border-2 hover:scale-105 ${
+                theme === "dark"
+                  ? "bg-slate-700/50 border-slate-600 hover:bg-slate-700 text-white"
+                  : "bg-slate-400/50 border-slate-400 hover:bg-slate-500 text-white"
+              }`}
             >
               Cancel
             </button>
@@ -412,79 +632,125 @@ const saveIssueDetails = async () => {
 
       {/* SHOW ISSUES MODAL */}
       {showLogsModal && logsComponentIndex !== null && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
-          <div className="bg-[#0F172A] p-6 rounded-2xl w-[520px] max-h-[70vh] overflow-y-auto border border-white/10">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 backdrop-blur-sm">
+          <div className={`p-6 rounded-2xl w-[520px] max-h-[70vh] overflow-y-auto border-2 shadow-2xl transition-all duration-300 ${
+            theme === "dark"
+              ? "bg-gradient-to-br from-slate-900 to-slate-950 border-slate-700/50 text-white"
+              : "bg-gradient-to-br from-white to-slate-50 border-slate-300/50 text-slate-900"
+          }`}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">
                 Issued Logs – {category.components[logsComponentIndex].name}
               </h2>
               <button
                 onClick={() => setShowLogsModal(false)}
-                className="text-red-400 text-sm"
+                className={`text-sm font-semibold transition-all duration-300 ${
+                  theme === "dark" ? "text-red-400 hover:text-red-300" : "text-red-500 hover:text-red-600"
+                }`}
               >
                 Close
               </button>
             </div>
 
             {/* 🔍 LOG FILTERS */}
-            <div className="flex gap-2 mb-3">
+            <div className="flex gap-2 mb-3 flex-wrap">
               <input
                 placeholder="Search person..."
                 value={logSearch}
                 onChange={(e) => setLogSearch(e.target.value)}
-                className="bg-white/10 p-2 rounded w-full"
+                className={`p-2 rounded border-2 outline-none focus:ring-2 flex-1 transition-all duration-300 ${
+                  theme === "dark"
+                    ? "bg-white/10 border-slate-600 placeholder-white/50 text-white focus:ring-cyan-400"
+                    : "bg-slate-200/40 border-slate-300 placeholder-slate-600 text-slate-900 focus:ring-blue-400"
+                }`}
               />
               <input
                 type="date"
                 value={logFrom}
                 onChange={(e) => setLogFrom(e.target.value)}
-                className="bg-white/10 p-2 rounded"
+                className={`p-2 rounded border-2 outline-none focus:ring-2 transition-all duration-300 ${
+                  theme === "dark"
+                    ? "bg-white/10 border-slate-600 text-white focus:ring-cyan-400"
+                    : "bg-slate-200/40 border-slate-300 text-slate-900 focus:ring-blue-400"
+                }`}
               />
               <input
                 type="date"
                 value={logTo}
                 onChange={(e) => setLogTo(e.target.value)}
-                className="bg-white/10 p-2 rounded"
+                className={`p-2 rounded border-2 outline-none focus:ring-2 transition-all duration-300 ${
+                  theme === "dark"
+                    ? "bg-white/10 border-slate-600 text-white focus:ring-cyan-400"
+                    : "bg-slate-200/40 border-slate-300 text-slate-900 focus:ring-blue-400"
+                }`}
               />
             </div>
 
             {(!category.components[logsComponentIndex].logs ||
               category.components[logsComponentIndex].logs.length === 0) ? (
-              <p className="opacity-70 text-sm">
+              <p className={`opacity-70 text-sm transition-all duration-300 ${
+                theme === "dark" ? "text-white/70" : "text-slate-600"
+              }`}>
                 No issues recorded for this component.
               </p>
             ) : (
-              <table className="w-full text-sm border border-white/10">
-                <thead className="bg-white/10">
-                  <tr>
-                    <th className="p-2 text-left">Person</th>
-                    <th className="p-2 text-left">Qty</th>
-                    <th className="p-2 text-left">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {category.components[logsComponentIndex].logs
-                    .filter((l) => {
-                      const personOk = l.person
-                        ?.toLowerCase()
-                        .includes(logSearch.toLowerCase());
-                      const fromOk = logFrom
-                        ? new Date(l.date) >= new Date(logFrom)
-                        : true;
-                      const toOk = logTo
-                        ? new Date(l.date) <= new Date(logTo)
-                        : true;
-                      return personOk && fromOk && toOk;
-                    })
-                    .map((log, idx) => (
-                      <tr key={idx} className="border-t border-white/10">
-                        <td className="p-2 capitalize">{log.person}</td>
-                        <td className="p-2">{log.quantity}</td>
-                        <td className="p-2">{log.date}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+              <div className={`rounded-lg border-2 overflow-hidden transition-all duration-300 ${
+                theme === "dark"
+                  ? "border-white/10 bg-white/5"
+                  : "border-slate-300/50 bg-slate-100/30"
+              }`}>
+                <table className="w-full text-sm">
+                  <thead className={`transition-all duration-300 ${
+                    theme === "dark"
+                      ? "bg-slate-950/50 border-b border-white/10"
+                      : "bg-slate-200/50 border-b border-slate-300/50"
+                  }`}>
+                    <tr>
+                      <th className={`p-2 text-left font-semibold transition-all duration-300 ${
+                        theme === "dark" ? "text-cyan-300" : "text-blue-700"
+                      }`}>Person</th>
+                      <th className={`p-2 text-left font-semibold transition-all duration-300 ${
+                        theme === "dark" ? "text-cyan-300" : "text-blue-700"
+                      }`}>Qty</th>
+                      <th className={`p-2 text-left font-semibold transition-all duration-300 ${
+                        theme === "dark" ? "text-cyan-300" : "text-blue-700"
+                      }`}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {category.components[logsComponentIndex].logs
+                      .filter((l) => {
+                        const personOk = l.person
+                          ?.toLowerCase()
+                          .includes(logSearch.toLowerCase());
+                        const fromOk = logFrom
+                          ? new Date(l.date) >= new Date(logFrom)
+                          : true;
+                        const toOk = logTo
+                          ? new Date(l.date) <= new Date(logTo)
+                          : true;
+                        return personOk && fromOk && toOk;
+                      })
+                      .map((log, idx) => (
+                        <tr key={idx} className={`transition-all duration-300 ${
+                          theme === "dark"
+                            ? "border-t border-white/10 hover:bg-white/8"
+                            : "border-t border-slate-300/30 hover:bg-slate-300/20"
+                        }`}>
+                          <td className={`p-2 capitalize transition-all duration-300 ${
+                            theme === "dark" ? "text-white" : "text-slate-900"
+                          }`}>{log.person}</td>
+                          <td className={`p-2 transition-all duration-300 ${
+                            theme === "dark" ? "text-white" : "text-slate-900"
+                          }`}>{log.quantity}</td>
+                          <td className={`p-2 transition-all duration-300 ${
+                            theme === "dark" ? "text-white" : "text-slate-900"
+                          }`}>{log.date}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -494,12 +760,16 @@ const saveIssueDetails = async () => {
 };
 
 // SMALL MODAL COMPONENT
-const Modal = ({ title, onClose, form, onChange, onSave }) => (
-  <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
-    <div className="bg-[#0F172A] p-8 rounded-2xl w-[420px]">
+const Modal = ({ title, onClose, form, onChange, onSave, theme }) => (
+  <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 backdrop-blur-sm">
+    <div className={`p-8 rounded-2xl w-[420px] border-2 shadow-2xl transition-all duration-300 ${
+      theme === "dark"
+        ? "bg-gradient-to-br from-slate-900 to-slate-950 border-slate-700/50 text-white"
+        : "bg-gradient-to-br from-white to-slate-50 border-slate-300/50 text-slate-900"
+    }`}>
       <div className="flex justify-between mb-6">
         <h2 className="text-xl font-bold">{title}</h2>
-        <button onClick={onClose}>
+        <button onClick={onClose} className="hover:scale-110 transition-all duration-300">
           <FaTimes />
         </button>
       </div>
@@ -510,7 +780,11 @@ const Modal = ({ title, onClose, form, onChange, onSave }) => (
           placeholder="ID"
           value={form.id}
           onChange={onChange}
-          className="bg-white/10 p-2 rounded"
+          className={`p-3 rounded border-2 outline-none focus:ring-2 transition-all duration-300 ${
+            theme === "dark"
+              ? "bg-white/10 border-slate-600 placeholder-white/50 text-white focus:ring-cyan-400 focus:border-cyan-400"
+              : "bg-slate-200/40 border-slate-300 placeholder-slate-600 text-slate-900 focus:ring-blue-400 focus:border-blue-400"
+          }`}
         />
 
         <input
@@ -518,7 +792,11 @@ const Modal = ({ title, onClose, form, onChange, onSave }) => (
           placeholder="Name"
           value={form.name}
           onChange={onChange}
-          className="bg-white/10 p-2 rounded"
+          className={`p-3 rounded border-2 outline-none focus:ring-2 transition-all duration-300 ${
+            theme === "dark"
+              ? "bg-white/10 border-slate-600 placeholder-white/50 text-white focus:ring-cyan-400 focus:border-cyan-400"
+              : "bg-slate-200/40 border-slate-300 placeholder-slate-600 text-slate-900 focus:ring-blue-400 focus:border-blue-400"
+          }`}
         />
 
         <input
@@ -526,7 +804,11 @@ const Modal = ({ title, onClose, form, onChange, onSave }) => (
           placeholder="Price"
           value={form.price}
           onChange={onChange}
-          className="bg-white/10 p-2 rounded"
+          className={`p-3 rounded border-2 outline-none focus:ring-2 transition-all duration-300 ${
+            theme === "dark"
+              ? "bg-white/10 border-slate-600 placeholder-white/50 text-white focus:ring-cyan-400 focus:border-cyan-400"
+              : "bg-slate-200/40 border-slate-300 placeholder-slate-600 text-slate-900 focus:ring-blue-400 focus:border-blue-400"
+          }`}
         />
 
         <input
@@ -534,7 +816,11 @@ const Modal = ({ title, onClose, form, onChange, onSave }) => (
           placeholder="Stock"
           value={form.total}
           onChange={onChange}
-          className="bg-white/10 p-2 rounded"
+          className={`p-3 rounded border-2 outline-none focus:ring-2 transition-all duration-300 ${
+            theme === "dark"
+              ? "bg-white/10 border-slate-600 placeholder-white/50 text-white focus:ring-cyan-400 focus:border-cyan-400"
+              : "bg-slate-200/40 border-slate-300 placeholder-slate-600 text-slate-900 focus:ring-blue-400 focus:border-blue-400"
+          }`}
         />
 
         <input
@@ -542,10 +828,18 @@ const Modal = ({ title, onClose, form, onChange, onSave }) => (
           placeholder="In Use"
           value={form.inUse}
           onChange={onChange}
-          className="bg-white/10 p-2 rounded"
+          className={`p-3 rounded border-2 outline-none focus:ring-2 transition-all duration-300 ${
+            theme === "dark"
+              ? "bg-white/10 border-slate-600 placeholder-white/50 text-white focus:ring-cyan-400 focus:border-cyan-400"
+              : "bg-slate-200/40 border-slate-300 placeholder-slate-600 text-slate-900 focus:ring-blue-400 focus:border-blue-400"
+          }`}
         />
 
-        <button onClick={onSave} className="bg-green-500 p-2 rounded mt-2">
+        <button onClick={onSave} className={`p-3 rounded mt-2 font-semibold transition-all duration-300 border-2 hover:scale-105 hover:shadow-lg ${
+          theme === "dark"
+            ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white border-green-500 hover:shadow-green-500/50"
+            : "bg-gradient-to-r from-emerald-500 to-green-500 text-white border-emerald-400 hover:shadow-emerald-400/50"
+        }`}>
           Save
         </button>
       </div>

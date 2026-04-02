@@ -64,14 +64,28 @@ const Register = () => {
 
     setLoading(true);
 
-    const finaldata = { username, fullname, email, password, mobileno, role };
+    const finaldata = {
+      name: fullname,
+      email,
+      userName: username,
+      password,
+      role,
+      mobile: mobileno,
+    };
 
     try {
-      await axios.post("http://localhost:3000/userdata", finaldata);
-      toast.success("Registration successful", { position: "top-center" });
-      navigate("/login");
+      const response = await axios.post("/api/auth/register", finaldata);
+
+      if (response.status === 201) {
+        toast.success("Registration successful", { position: "top-center" });
+        navigate("/login");
+      } else {
+        toast.error("Registration failed", { position: "top-center" });
+      }
     } catch (error) {
-      toast.error("Registration failed", { position: "top-center" });
+      const message =
+        error?.response?.data?.message || "Registration failed. Please try again.";
+      toast.error(message, { position: "top-center" });
     } finally {
       setLoading(false);
     }
